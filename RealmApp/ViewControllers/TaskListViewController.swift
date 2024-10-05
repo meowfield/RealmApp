@@ -11,10 +11,12 @@ import RealmSwift
 
 final class TaskListViewController: UITableViewController {
 
+    // MARK: Private Properties
     private var taskLists: Results<TaskList>!
     private let storageManager = StorageManager.shared
     private let dataManager = DataManager.shared
     
+    // MARK: Lifecycle Methods
     override func viewDidLoad() {
         super.viewDidLoad()
         let addButton = UIBarButtonItem(
@@ -22,10 +24,8 @@ final class TaskListViewController: UITableViewController {
             target: self,
             action: #selector(addButtonPressed)
         )
-        
         navigationItem.rightBarButtonItem = addButton
         navigationItem.leftBarButtonItem = editButtonItem
-        
         createTempData()
         taskLists = storageManager.fetchData(TaskList.self)
     }
@@ -46,7 +46,7 @@ final class TaskListViewController: UITableViewController {
         
         let taskList = taskLists[indexPath.row]
         content.text = taskList.title
-        content.secondaryText = taskList.tasks.count.formatted()
+        content.secondaryText = taskList.tasks.filter { !$0.isComplete }.count.formatted()
         cell.contentConfiguration = content
         return cell
     }
@@ -66,7 +66,7 @@ final class TaskListViewController: UITableViewController {
             }
             isDone(true)
         }
-        
+
         let doneAction = UIContextualAction(style: .normal, title: "Done") { [unowned self] _, _, isDone in
             storageManager.done(taskList)
             tableView.reloadRows(at: [indexPath], with: .automatic)
@@ -86,8 +86,26 @@ final class TaskListViewController: UITableViewController {
         let taskList = taskLists[indexPath.row]
         tasksVC.taskList = taskList
     }
-
-    @IBAction func sortingList(_ sender: UISegmentedControl) {
+    
+    // MARK: IB Actions
+    @IBAction func sortingTasks(_ sender: UISegmentedControl) {
+        switch sender.selectedSegmentIndex {
+        case 0:
+            sortByDate()
+        default:
+            sortByAlhabet()
+        }
+    }
+    
+    // MARK: Private Methods
+    private func sortByDate() {
+        taskLists = taskLists.sorted(byKeyPath: "date", ascending: true)
+        tableView.reloadData()
+    }
+    
+    private func sortByAlhabet() {
+        taskLists =     taskLists.sorted(byKeyPath: "title", ascending: true)
+        tableView.reloadData()
     }
     
     @objc private func addButtonPressed() {
@@ -111,7 +129,6 @@ extension TaskListViewController {
             title: taskList != nil ? "Edit List" : "New List",
             message: "Please set title for new task list"
         )
-        
         alertBuilder
             .setTextField(withPlaceholder: "List Title", andText: taskList?.title)
             .addAction(title: taskList != nil ? "Update List" : "Save List", style: .default) { [unowned self] newValue, _ in
@@ -120,11 +137,9 @@ extension TaskListViewController {
                     completion()
                     return
                 }
-                
                 createTaskList(withTitle: newValue)
             }
             .addAction(title: "Cancel", style: .destructive)
-        
         let alertController = alertBuilder.build()
         present(alertController, animated: true)
     }

@@ -11,12 +11,15 @@ import RealmSwift
 
 final class TasksViewController: UITableViewController {
     
+    // MARK: Public Propertioes
     var taskList: TaskList!
     
+    // MARK: Private Properties
     private let storageManager = StorageManager.shared
     private var currentTasks: Results<Task>!
     private var completedTasks: Results<Task>!
 
+    // MARK: Lyfecicle Methods
     override func viewDidLoad() {
         super.viewDidLoad()
         title = taskList.title
@@ -37,16 +40,28 @@ final class TasksViewController: UITableViewController {
         2
     }
     
-    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    override func tableView(
+        _ tableView: UITableView,
+        numberOfRowsInSection section: Int
+    ) -> Int {
         section == 0 ? currentTasks.count : completedTasks.count
     }
     
-    override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+    override func tableView(
+        _ tableView: UITableView,
+        titleForHeaderInSection section: Int
+    ) -> String? {
         section == 0 ? "CURRENT TASKS" : "COMPLETED TASKS"
     }
     
-    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "TasksCell", for: indexPath)
+    override func tableView(
+        _ tableView: UITableView,
+        cellForRowAt indexPath: IndexPath
+    ) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(
+            withIdentifier: "TasksCell",
+            for: indexPath
+        )
         var content = cell.defaultContentConfiguration()
         let task = indexPath.section == 0 ? currentTasks[indexPath.row] : completedTasks[indexPath.row]
         content.text = task.title
@@ -55,34 +70,35 @@ final class TasksViewController: UITableViewController {
         return cell
     }
     
-    @objc private func addButtonPressed() {
-        showAlert()
-    }
-    
-    //добавил
-    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+    override func tableView(
+        _ tableView: UITableView,
+        didSelectRowAt indexPath: IndexPath
+    ) {
+            showAlert(with: taskList.tasks[indexPath.row])
             tableView.deselectRow(at: indexPath, animated: true)
-            
-            let task = indexPath.section == 0 ? currentTasks[indexPath.row] : completedTasks[indexPath.row]
-            storageManager.done(task)
-            
-            currentTasks = taskList.tasks.filter("isComplete = false")
-            completedTasks = taskList.tasks.filter("isComplete = true")
-            tableView.reloadData()
         }
     
-    override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+    override func tableView(
+        _ tableView: UITableView,
+        trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
+    ) -> UISwipeActionsConfiguration? {
             let task = indexPath.section == 0 ? currentTasks[indexPath.row] : completedTasks[indexPath.row]
             
-            let deleteAction = UIContextualAction(style: .destructive, title: "Delete") { [unowned self] _, _, _ in
+        let deleteAction = UIContextualAction(
+            style: .destructive,
+            title: "Delete"
+        ) { [unowned self] _, _, _ in
                 storageManager.delete(task)
-                // Обновляем данные и интерфейс
+                
                 currentTasks = taskList.tasks.filter("isComplete = false")
                 completedTasks = taskList.tasks.filter("isComplete = true")
                 tableView.deleteRows(at: [indexPath], with: .automatic)
             }
             
-            let editAction = UIContextualAction(style: .normal, title: "Edit") { [unowned self] _, _, isDone in
+        let editAction = UIContextualAction(
+            style: .normal,
+            title: "Edit"
+        ) { [unowned self] _, _, isDone in
                 showAlert(with: task) {
                     tableView.reloadRows(at: [indexPath], with: .automatic)
                 }
@@ -90,9 +106,12 @@ final class TasksViewController: UITableViewController {
             }
             
             let doneTitle = indexPath.section == 0 ? "Done" : "Undone"
-            let doneAction = UIContextualAction(style: .normal, title: doneTitle) { [unowned self] _, _, isDone in
+        let doneAction = UIContextualAction(
+            style: .normal,
+            title: doneTitle
+        ) { [unowned self] _, _, isDone in
                 storageManager.done(task)
-                // Обновляем данные и интерфейс
+                
                 currentTasks = taskList.tasks.filter("isComplete = false")
                 completedTasks = taskList.tasks.filter("isComplete = true")
                 tableView.reloadData()
@@ -104,8 +123,11 @@ final class TasksViewController: UITableViewController {
             
             return UISwipeActionsConfiguration(actions: [doneAction, editAction, deleteAction])
         }
-
-
+    
+    // MARK: Private Methods
+    @objc private func addButtonPressed() {
+        showAlert()
+    }
 }
 
 extension TasksViewController {
@@ -122,17 +144,27 @@ extension TasksViewController {
                 title: task != nil ? "Update Task" : "Save Task",
                 style: .default
             ) { [unowned self] taskTitle, taskNote in
-                if let task, let completion {
-                    // TODO: - edit task
-                    return
+                if let task = task {
+                    editTask(task, withTitle: taskTitle, andNote: taskNote)
+                    completion?()
+                } else {
+                    createTask(withTitle: taskTitle, andNote: taskNote)
                 }
-                createTask(withTitle: taskTitle, andNote: taskNote)
             }
             .addAction(title: "Cancel", style: .destructive)
         
         let alertController = alertBuilder.build()
         present(alertController, animated: true)
     }
+    
+    private func editTask(_ task: Task, withTitle title: String, andNote note: String) {
+            storageManager.edit(task, newTitle: title, newNote: note)
+
+            currentTasks = taskList.tasks.filter("isComplete = false")
+            completedTasks = taskList.tasks.filter("isComplete = true")
+                       
+            tableView.reloadData()
+        }
     
     private func createTask(withTitle title: String, andNote note: String) {
         storageManager.save(title, withNote: note, to: taskList) { task in
